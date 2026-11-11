@@ -1,0 +1,82 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["weaver", "admin", "regular"] },
+        "whatsappNumber": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role"]
+    },
+    "Trend": {
+      "title": "Trend",
+      "description": "Fashion trend insights for weavers",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "colorPalette": { 
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "imageUrl"]
+    },
+    "SareeGalleryItem": {
+      "title": "SareeGalleryItem",
+      "description": "A saree posted by a weaver or admin to the public catalog",
+      "type": "object",
+      "properties": {
+        "imageUrl": { "type": "string" },
+        "weaverId": { "type": "string" },
+        "weaverName": { "type": "string" },
+        "price": { "type": "number" },
+        "sareeType": { "type": "string" },
+        "category": { "type": "string", "enum": ["Silk", "Cotton", "Designer", "Wedding", "Karnataka Traditional"] },
+        "fabricType": { "type": "string" },
+        "description": { "type": "string" },
+        "whatsappNumber": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["imageUrl", "weaverId", "weaverName", "price", "category"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order details",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "items": { "type": "array" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "shipped", "delivered"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "items", "totalAmount", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Storage for user profiles"
+    },
+    "/trends/{trendId}": {
+      "schema": "Trend",
+      "description": "Collection of trending fashion insights"
+    },
+    "/products/{productId}": {
+      "schema": "SareeGalleryItem",
+      "description": "Main catalog of sarees for purchase"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer order history"
+    }
+  }
+}

@@ -1,0 +1,108 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      // Bootstrapped Admin
+      return isSignedIn() && (
+        request.auth.token.email == 'manasaugowda16@gmail.com' || 
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isWeaver() {
+      return isSignedIn() && getUserData().role == 'weaver';
+    }
+
+    // --- Validation Blueprints ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'role', 'createdAt']) &&
+             data.keys().size() >= 3 && data.keys().size() <= 6 &&
+             data.email is string && data.email.size() <= 256 &&
+             data.role in ['weaver', 'admin', 'regular'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidTrend(data) {
+      return data.keys().hasAll(['title', 'imageUrl', 'createdAt']) &&
+             data.keys().size() >= 3 && data.keys().size() <= 6 &&
+             data.title is string && data.title.size() <= 100 &&
+             data.imageUrl is string && data.imageUrl.size() <= 500 &&
+             (data.get('colorPalette', []) is list) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidSareeGalleryItem(data) {
+      return data.keys().hasAll(['imageUrl', 'weaverId', 'weaverName', 'price', 'sareeType', 'createdAt']) &&
+             data.keys().size() >= 6 && data.keys().size() <= 9 &&
+             data.imageUrl is string && data.imageUrl.size() <= 500 &&
+             data.weaverId == request.auth.uid &&
+             data.weaverName is string && data.weaverName.size() <= 100 &&
+             data.price is number && data.price >= 0 &&
+             data.sareeType in ['Ilkal', 'Molakalmuru'] &&
+             data.createdAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
+      allow update: if isSignedIn() && request.auth.uid == userId && 
+                    isValidUser(incoming()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'whatsappNumber']);
+      allow delete: if isAdmin();
+    }
+
+    match /trends/{trendId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidTrend(incoming());
+    }
+
+    match /gallery/{itemId} {
+      allow read: if isSignedIn();
+      allow create: if isWeaver() && isValidSareeGalleryItem(incoming());
+      allow update: if (isAdmin() || (isWeaver() && existing().weaverId == request.auth.uid)) && 
+                    isValidSareeGalleryItem(incoming()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['price', 'description', 'imageUrl']);
+      allow delete: if isAdmin() || (isWeaver() && existing().weaverId == request.auth.uid);
+    }
+    
+    // Admin list for checking roles without embedding emails in rules
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if false; // System only
+    }
+  }
+}
